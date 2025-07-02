@@ -6,6 +6,7 @@ import { FileList } from '../files/FileList';
 import { UploadButton } from './UploadButton';
 import { uploadService } from '../../services';
 import { useCallback } from 'react';
+import PDFAnnotationViewer from '../PDFAnnotationViewer';
 
 export const FileUpload = () => {
   const [files, setFiles] = useState([]);
@@ -16,6 +17,8 @@ export const FileUpload = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false); // To track if file upload is in progress
   const [indexingFiles, setIndexingFiles] = useState(new Set());
+  const [annotatingFile, setAnnotatingFile] = useState(null);
+  const [viewingFile, setViewingFile] = useState(null);
 
   useEffect(() => {
     loadFiles();
@@ -179,6 +182,56 @@ export const FileUpload = () => {
       setLoading(false);
     }
   }, []);
+
+  // Annotation handlers
+  const handleAnnotate = (file) => {
+    setAnnotatingFile(file);
+  };
+
+  const handleAnnotatorClose = () => {
+    setAnnotatingFile(null);
+    // Refresh file list when annotation viewer closes
+    loadFiles();
+  };
+
+  const handleViewerClose = () => {
+    setViewingFile(null);
+  };
+
+  const handleViewFile = (file) => {
+    // If it's a PDF, use the PDFViewer component
+    if (file.type === 'application/pdf') {
+      setViewingFile(file);
+    } else {
+      // For other file types, open in new tab
+      window.open(`${process.env.REACT_APP_BASE_URL}/${file.file_path}`, '_blank');
+    }
+  };
+
+  // If annotating, show the annotation viewer instead of PDFAnnotator
+  if (annotatingFile) {
+    return (
+      <PDFAnnotationViewer
+        fileId={annotatingFile.id}
+        filePath={annotatingFile.file_path}
+        fileName={annotatingFile.title}
+        onClose={handleAnnotatorClose}
+      />
+    );
+  }
+
+  // If viewing a PDF, show the annotation viewer instead of PDF viewer
+  if (viewingFile) {
+    return (
+      <PDFAnnotationViewer
+        fileId={viewingFile.id}
+        filePath={viewingFile.file_path}
+        fileName={viewingFile.title}
+        onClose={handleViewerClose}
+      />
+    );
+  }
+  
   const filteredFiles = searchResults || (files?.filter(file => {
     if (!file || !file.title) return false;
     return file.title.toLowerCase().includes(
@@ -247,6 +300,8 @@ export const FileUpload = () => {
             );
           }}
           onStartIndexing={handleStartIndexing}
+          onAnnotate={handleAnnotate}
+          onViewFile={handleViewFile}
         />
       )}
     </Box>
